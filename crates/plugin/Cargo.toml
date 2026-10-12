@@ -1,0 +1,17 @@
+[package]
+name = "reveler-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+reveler-dsp = { path = "../dsp" }
+nice-plug = "=0.4.2"
+nice-plug-core = "=0.4.2"
+nice-plug-egui = { version = "=0.5.1", default-features = false, features = ["wgpu"] }
+
+egui = "=0.36.2"
