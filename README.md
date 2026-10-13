@@ -17,6 +17,7 @@ Get your platform ZIP from [Releases](https://github.com/D35P4C1T0/Reveler-rs/re
 VST3 and CLAP support mono, stereo, and 5.1 with independent LFE processing. AUv2 supports stereo and includes its CLAP engine. Mac binaries are ad-hoc signed, without Apple notarization.
 
 Extract the archive, copy the complete plugin bundle to your DAW's plugin directory, and rescan.
+For macOS security prompts, see [macOS installation](docs/macos.md).
 
 ## Controls
 

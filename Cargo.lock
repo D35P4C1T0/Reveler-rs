@@ -153,8 +153,6 @@ dependencies = [
 [[package]]
 name = "baseview"
 version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "398beed857a4f7300a2b0c35d968768a5bfdb3264c12c166d478f9d728c6db5c"
 dependencies = [
  "block2 0.6.2",
  "bytemuck",
@@ -167,6 +165,7 @@ dependencies = [
  "objc2-app-kit 0.3.2",
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
+ "objc2-quartz-core 0.3.2",
  "percent-encoding",
  "raw-window-handle",
  "tracing",
@@ -2044,8 +2043,9 @@ version = "0.1.0"
 
 [[package]]
 name = "reveler-rs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
+ "baseview",
  "egui",
  "nice-plug",
  "nice-plug-core",
@@ -3276,7 +3276,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "nice-plug-xtask",
 ]

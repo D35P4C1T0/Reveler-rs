@@ -84,7 +84,7 @@ jobs:
           cmake -S packaging/au -B target/au -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15 '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' \
             "-DCLAP_BUNDLE=$PWD/target/bundled/Reveler-rs.clap"
-          cmake --build target/au --config Release --parallel 3
+          cmake --build target/au --config Release --clean-first --parallel 3
           rm -rf 'target/bundled/Reveler-rs.component'
           cp -R 'target/au/Reveler-rs.component' 'target/bundled/Reveler-rs.component'
           codesign --force --deep --sign - 'target/bundled/Reveler-rs.component'
@@ -97,6 +97,7 @@ jobs:
           python tools/vst3_smoke.py
           python tools/clap_smoke.py
           python tools/au_smoke.py
+          python tools/mac_gui_smoke.py
       - name: Package Windows and Linux
         if: runner.os != 'macOS'
         run: python tools/package_release.py --platform '${{ matrix.platform }}'

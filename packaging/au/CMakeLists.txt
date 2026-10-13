@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(RevelerRSAU VERSION 0.1.0 LANGUAGES C CXX OBJC OBJCXX)
+project(RevelerRSAU VERSION 0.1.1 LANGUAGES C CXX OBJC OBJCXX)
 if(NOT APPLE)
     message(FATAL_ERROR "Audio Units can only be built on macOS")
 endif()
@@ -18,6 +18,12 @@ FetchContent_Declare(clap_wrapper
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(clap_wrapper)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+execute_process(
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/patch_cocoa_view.py"
+            "${clap_wrapper_SOURCE_DIR}"
+    COMMAND_ERROR_IS_FATAL ANY
+)
 add_library(reveler_au MODULE)
 target_add_auv2_wrapper(
     TARGET reveler_au

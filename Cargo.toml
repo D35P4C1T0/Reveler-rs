@@ -2,9 +2,13 @@
 members = ["crates/dsp", "crates/plugin", "xtask"]
 default-members = ["crates/dsp", "crates/plugin"]
 resolver = "3"
+exclude = ["vendor/baseview"]
+
+[patch.crates-io]
+baseview = { path = "vendor/baseview" }
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
 license = "MIT"

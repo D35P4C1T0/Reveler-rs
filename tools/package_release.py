@@ -35,11 +35,13 @@ def main():
         shutil.copytree(args.au,stage/args.au.name)
     for file in ['README.md','LICENSE','THIRD_PARTY.md']:
         shutil.copy2(ROOT/file, stage/file)
+    (stage/'docs').mkdir()
+    shutil.copy2(ROOT/'docs/macos.md', stage/'docs/macos.md')
     metadata=json.loads(subprocess.check_output(['cargo','metadata','--locked','--format-version','1'],cwd=ROOT))
     notices=stage/'licenses';notices.mkdir()
     inventory=[]
     for package in metadata['packages']:
-        if package['source'] is None:
+        if package['id'] in metadata['workspace_members']:
             continue
         pkg_root=Path(package['manifest_path']).parent
         inventory.append({key:package.get(key) for key in ['name','version','license','repository']})

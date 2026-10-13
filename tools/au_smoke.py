@@ -77,6 +77,8 @@ for channels in [2]:
             assert all(math.isfinite(v) for v in values)
             peak=max(peak,max(abs(v) for v in values))
     assert peak>0,'AU rendered only silence'
+    from au_gui_host import check_editor
+    check_editor(instance, get_property, check)
     check(uninitialize(instance));check(dispose(instance))
     print(f'AUv2 {channels} channels: processed 12800 finite frames; latency=1698; peak={peak:.6f}')
 for value in [name,factory_name,handle,bundle_url]:release(value)
