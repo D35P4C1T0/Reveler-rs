@@ -23,6 +23,8 @@ For macOS security prompts, see [macOS installation](docs/macos.md).
 
 Target Level, True Peak, Max Gain, Freeze Level, Input Level, separate High/Low Correction, four linear/logarithmic Mix Modes, LFE Gain, and latency-compensated Bypass. Latency is 1698 samples at 48 kHz. Processing, parameter updates, and reset allocate no memory.
 
+The compact Swiss-style editor includes live meters, direct value entry, fine slider adjustment, and a scrolling manual with a reversible page flip. Click the book icon to open the manual; the window keeps its size.
+
 ## Build
 
 Requires Rust 1.95+; CI uses 1.99. The standalone DSP requires 1.88.

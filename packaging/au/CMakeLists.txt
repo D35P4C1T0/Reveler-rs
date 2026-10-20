@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(RevelerRSAU VERSION 0.1.1 LANGUAGES C CXX OBJC OBJCXX)
+project(RevelerRSAU VERSION 0.2.0 LANGUAGES C CXX OBJC OBJCXX)
 if(NOT APPLE)
     message(FATAL_ERROR "Audio Units can only be built on macOS")
 endif()

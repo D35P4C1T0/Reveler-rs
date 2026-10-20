@@ -102,7 +102,7 @@ default_mode = P.in_dll(cf, 'kCFRunLoopDefaultMode')
 
 # Real initialized parent, retained for the entire editor lifecycle.
 parent = send(get_class(b'NSView'), selector(b'alloc'))
-parent = original_init(parent, selector(b'initWithFrame:'), Rect(Point(0, 0), Size(620, 520)))
+parent = original_init(parent, selector(b'initWithFrame:'), Rect(Point(0, 0), Size(520, 590)))
 assert parent
 window = Window(b'cocoa', parent)
 set_imp(init_method, c.cast(reentrant_init, P))
@@ -126,7 +126,8 @@ try:
             assert gui.parent(pp, c.byref(window))
             width, height = U(), U()
             assert gui.size(pp, c.byref(width), c.byref(height))
-            assert width.value > 0 and height.value > 0
+            assert width.value >= 520 and height.value >= 590
+            assert width.value * 590 == height.value * 520, (width.value, height.value)
             assert gui.show(pp)
             for _ in range(10):
                 run_loop(default_mode, .02, False)

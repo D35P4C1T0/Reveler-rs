@@ -1,11 +1,11 @@
 //! Plugin controls, native format exports and editor.
 use nice_plug::prelude::*;
-use nice_plug_core::context::gui::GuiContext;
 use nice_plug_core::editor::dpi::LogicalSize;
 use nice_plug_egui::{
-    EguiEditor, EguiEditorState, EguiNiceSettings, Frame, NiceEguiApp, RepaintNotifier,
-    create_egui_editor, widgets::ParamSlider,
+    EguiEditor, EguiEditorState, EguiNiceSettings, RepaintNotifier, create_egui_editor,
 };
+mod editor;
+use editor::RevelerEditor;
 use reveler_dsp::{Parameters, Processor};
 use std::sync::{
     Arc,
@@ -119,7 +119,10 @@ impl Default for Reveler {
             params: Arc::default(),
             dsp: None,
             meters: Arc::default(),
-            editor_state: EguiEditorState::from_size(LogicalSize::new(620.0, 520.0), 1.0),
+            editor_state: EguiEditorState::from_size(
+                LogicalSize::new(editor::WIDTH, editor::EXPANDED_HEIGHT),
+                1.0,
+            ),
         }
     }
 }
@@ -162,11 +165,7 @@ impl Plugin for Reveler {
             self.editor_state.clone(),
             RepaintNotifier::new(),
             EguiNiceSettings::default(),
-            RevelerEditor {
-                params: self.params.clone(),
-                meters: self.meters.clone(),
-                context: None,
-            },
+            RevelerEditor::new(self.params.clone(), self.meters.clone()),
         )
     }
 
@@ -269,100 +268,6 @@ impl Vst3Plugin for Reveler {
     const VST3_CLASS_ID: [u8; 16] = *b"RevelerRS2026v01";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] =
         &[Vst3SubCategory::Fx, Vst3SubCategory::Dynamics];
-}
-
-struct RevelerEditor {
-    params: Arc<RevelerParams>,
-    meters: Arc<Meters>,
-    context: Option<GuiContext>,
-}
-
-impl NiceEguiApp for RevelerEditor {
-    fn build(
-        &mut self,
-        _: egui::Context,
-        context: GuiContext,
-        _: &mut Frame,
-    ) -> Result<(), nice_plug_egui::baseview::HandlerError> {
-        self.context = Some(context);
-        Ok(())
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut Frame) {
-        ui.ctx()
-            .request_repaint_after(std::time::Duration::from_millis(50));
-        ui.heading("Reveler-rs");
-        ui.label("Adaptive loudness leveling • true-peak limiting");
-        ui.separator();
-        let db = |v: &AtomicU32| {
-            let amplitude = f32::from_bits(v.load(Ordering::Relaxed));
-            if amplitude > 1e-6 {
-                format!("{:.1} dBFS", 20.0 * amplitude.log10())
-            } else {
-                "−∞ dBFS".into()
-            }
-        };
-        ui.horizontal(|ui| {
-            ui.label(format!("Input peak  {}", db(&self.meters.input)));
-            ui.separator();
-            ui.label(format!("Output peak  {}", db(&self.meters.output)));
-        });
-        ui.horizontal(|ui| {
-            let value = |meter: &AtomicU32| f32::from_bits(meter.load(Ordering::Relaxed));
-            ui.label(format!(
-                "Detector {:.1} LUFS",
-                value(&self.meters.input_lufs)
-            ));
-            ui.separator();
-            ui.label(format!("Gain {:+.1} dB", value(&self.meters.gain_db)));
-            ui.separator();
-            ui.label(format!("Limiter {:.1} dB", value(&self.meters.limiter_db)));
-        });
-        ui.separator();
-        let Some(context) = &self.context else {
-            return;
-        };
-        let setter = context.param_setter();
-        egui::Grid::new("parameters")
-            .spacing([24.0, 12.0])
-            .show(ui, |ui| {
-                for parameter in [
-                    &self.params.target,
-                    &self.params.true_peak,
-                    &self.params.max_gain,
-                    &self.params.freeze,
-                    &self.params.input,
-                    &self.params.correction_high,
-                    &self.params.correction_low,
-                    &self.params.lfe_gain,
-                ] {
-                    ui.label(parameter.name());
-                    ui.add(ParamSlider::for_param(parameter, &setter).with_width(360.0));
-                    ui.end_row();
-                }
-                ui.label("Mix Mode");
-                ui.add(ParamSlider::for_param(&self.params.mix_mode, &setter).with_width(360.0));
-                ui.end_row();
-                ui.label("Bypass");
-                let mut bypass = self.params.bypass.value();
-                if ui
-                    .checkbox(&mut bypass, "Latency compensated dry signal")
-                    .changed()
-                {
-                    setter.begin_set_parameter(&self.params.bypass);
-                    setter.set_parameter(&self.params.bypass, bypass);
-                    setter.end_set_parameter(&self.params.bypass);
-                }
-                ui.end_row();
-            });
-        ui.separator();
-        ui.small("Double click resets a slider. Shift drag makes fine adjustments. Click a value to type.");
-        ui.small("5.1 channel order: L · R · C · LFE · Ls · Rs");
-    }
-
-    fn editor_closed(&mut self) {
-        self.context = None;
-    }
 }
 
 nice_export_clap!(Reveler);
