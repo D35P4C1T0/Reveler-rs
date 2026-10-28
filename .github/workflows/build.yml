@@ -55,6 +55,8 @@ jobs:
           sudo apt-get install -y libasound2-dev libx11-dev libx11-xcb-dev \
             libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
             libxkbcommon-dev libxkbcommon-x11-dev libxcursor-dev libgl1-mesa-dev
+      - name: VST3 editor thread regression tests
+        run: cargo test --manifest-path vendor/nice-plug/Cargo.toml --lib editor_thread_tests --release --locked --target-dir target
       - name: Check version for tagged builds
         if: startsWith(github.ref, 'refs/tags/')
         env:

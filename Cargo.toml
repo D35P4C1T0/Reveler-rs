@@ -2,10 +2,11 @@
 members = ["crates/dsp", "crates/plugin", "xtask"]
 default-members = ["crates/dsp", "crates/plugin"]
 resolver = "3"
-exclude = ["vendor/baseview"]
+exclude = ["vendor/baseview", "vendor/nice-plug"]
 
 [patch.crates-io]
 baseview = { path = "vendor/baseview" }
+nice-plug = { path = "vendor/nice-plug" }
 
 [workspace.package]
 version = "0.2.0"
