@@ -65,6 +65,25 @@ const K_BUS_TYPE_MAIN: i32 = vst3::Steinberg::Vst::BusTypes_::kMain as i32;
 #[allow(clippy::unnecessary_cast)]
 const K_BUS_TYPE_AUX: i32 = vst3::Steinberg::Vst::BusTypes_::kAux as i32;
 
+fn channel_count_to_map(count: u32) -> SpeakerArrangement {
+    match count {
+        0 => vst3::Steinberg::Vst::SpeakerArr::kEmpty,
+        1 => vst3::Steinberg::Vst::SpeakerArr::kMono,
+        2 => vst3::Steinberg::Vst::SpeakerArr::kStereo,
+        5 => vst3::Steinberg::Vst::SpeakerArr::k50,
+        6 => vst3::Steinberg::Vst::SpeakerArr::k51,
+        7 => vst3::Steinberg::Vst::SpeakerArr::k70Cine,
+        8 => vst3::Steinberg::Vst::SpeakerArr::k71Cine,
+        n => {
+            crate::nice_debug_assert_failure!(
+                "No defined layout for {} channels, making something up on the spot...",
+                n
+            );
+            (1 << n) - 1
+        }
+    }
+}
+
 pub struct Wrapper<P: Vst3Plugin> {
     inner: Arc<WrapperInner<P>>,
 }
@@ -852,41 +871,39 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for Wrapper<P> {
                     return false;
                 }
 
-                // NOTE: We completely ignore the speaker arrangements and only look at the channel
-                //       counts here. This may cause issues at some point, but it works for now.
+                // Speaker order must match the map reported by getBusArrangement.
                 let has_main_input = layout.main_input_channels.is_some();
-                let aux_input_start_idx = if has_main_input { 0 } else { 1 };
+                let aux_input_start_idx = if has_main_input { 1 } else { 0 };
                 if has_main_input
                     && unsafe {
-                        (*inputs).count_ones() != layout.main_input_channels.unwrap().get()
+                        (*inputs) != channel_count_to_map(layout.main_input_channels.unwrap().get())
                     }
                 {
                     return false;
                 }
                 for (aux_input_idx, channel_count) in layout.aux_input_ports.iter().enumerate() {
                     if unsafe {
-                        (*inputs.add(aux_input_idx + aux_input_start_idx)).count_ones()
-                            != channel_count.get()
+                        (*inputs.add(aux_input_idx + aux_input_start_idx))
+                            != channel_count_to_map(channel_count.get())
                     } {
                         return false;
                     }
                 }
 
                 let has_main_output = layout.main_output_channels.is_some();
-                let aux_output_start_idx = if has_main_output { 0 } else { 1 };
-                if unsafe {
-                    (*outputs).count_ones()
-                        != layout
-                            .main_output_channels
-                            .map(NonZeroU32::get)
-                            .unwrap_or_default()
-                } {
+                let aux_output_start_idx = if has_main_output { 1 } else { 0 };
+                if has_main_output
+                    && unsafe {
+                        (*outputs)
+                            != channel_count_to_map(layout.main_output_channels.unwrap().get())
+                    }
+                {
                     return false;
                 }
                 for (aux_output_idx, channel_count) in layout.aux_output_ports.iter().enumerate() {
                     if unsafe {
-                        (*outputs.add(aux_output_idx + aux_output_start_idx)).count_ones()
-                            != channel_count.get()
+                        (*outputs.add(aux_output_idx + aux_output_start_idx))
+                            != channel_count_to_map(channel_count.get())
                     } {
                         return false;
                     }
@@ -915,23 +932,6 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for Wrapper<P> {
         arr: *mut SpeakerArrangement,
     ) -> tresult {
         check_null_ptr!(arr);
-
-        let channel_count_to_map = |count| match count {
-            0 => vst3::Steinberg::Vst::SpeakerArr::kEmpty,
-            1 => vst3::Steinberg::Vst::SpeakerArr::kMono,
-            2 => vst3::Steinberg::Vst::SpeakerArr::kStereo,
-            5 => vst3::Steinberg::Vst::SpeakerArr::k50,
-            6 => vst3::Steinberg::Vst::SpeakerArr::k51,
-            7 => vst3::Steinberg::Vst::SpeakerArr::k70Cine,
-            8 => vst3::Steinberg::Vst::SpeakerArr::k71Cine,
-            n => {
-                crate::nice_debug_assert_failure!(
-                    "No defined layout for {} channels, making something up on the spot...",
-                    n
-                );
-                (1 << n) - 1
-            }
-        };
 
         let current_audio_io_layout = self.inner.current_audio_io_layout.load();
         let num_channels = if dir == K_BUS_DIRECTION_INPUT {

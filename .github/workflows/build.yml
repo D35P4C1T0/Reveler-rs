@@ -80,6 +80,11 @@ jobs:
       - name: Build universal macOS VST3 and CLAP
         if: runner.os == 'macOS'
         run: cargo xtask bundle-universal reveler-rs --release --locked
+      - name: Linux plugin host checks
+        if: runner.os == 'Linux'
+        run: |
+          python tools/vst3_smoke.py
+          python tools/clap_smoke.py
       - name: Build universal self-contained Audio Unit
         if: runner.os == 'macOS'
         run: |

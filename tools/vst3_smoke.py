@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Minimal native VST3 host smoke test (macOS ABI, no editor).
+"""Minimal native VST3 host smoke test (macOS/Linux ABI, no editor).
 
 Structs and vtable slots follow Steinberg's VST3 interfaces as generated in
 vst3 crate 0.3.0. Tests native format instantiation and audio processing.
 """
 import ctypes as c
 import math
+import sys
 from pathlib import Path
 
 P, I, U, B = c.c_void_p, c.c_int32, c.c_uint32, c.c_uint8
@@ -36,6 +37,8 @@ class Process(c.Structure):
                 ('input_events', P), ('output_events', P), ('context', P)]
 
 path = Path(__file__).resolve().parent.parent / 'target/bundled/Reveler-rs.vst3/Contents/MacOS/Reveler-rs'
+if sys.platform == 'linux':
+    path = path.parent.parent / 'x86_64-linux/Reveler-rs.so'
 lib = c.CDLL(str(path))
 lib.GetPluginFactory.restype = P
 factory = lib.GetPluginFactory()
@@ -52,7 +55,7 @@ for channels in (1, 2, 6):
     assert method(component, 3, I, P)(component, None) == 0
     processor = P()
     assert method(component, 0, I, P, P)(component, audio_iid, c.byref(processor)) == 0
-    arrangement = c.c_uint64((1 << channels) - 1)
+    arrangement = c.c_uint64({1: 1 << 19, 2: 3, 6: 63}[channels])
     assert method(processor, 3, I, P, I, P, I)(processor, c.byref(arrangement), 1, c.byref(arrangement), 1) == 0
     setup = Setup(0, 0, 64, 48000.0)
     assert method(processor, 7, I, P)(processor, c.byref(setup)) == 0

@@ -224,6 +224,34 @@ fn zero_low_correction_startup_does_not_emit_nan() {
     );
     assert!(y.iter().flatten().all(|x| x.is_finite()));
 }
+
+#[test]
+fn zero_low_correction_preserves_quiet_audio_in_every_mix_mode() {
+    for channels in [1, 2, 6] {
+        for mix_mode in 0..4 {
+            let y = run_signal(
+                48000.0,
+                channels,
+                12000,
+                Parameters {
+                    correction_high: 1.0,
+                    correction_low: 0.0,
+                    input_lufs: -30.0,
+                    max_gain_db: 20.0,
+                    freeze_lufs: -70.0,
+                    mix_mode,
+                    ..Parameters::default()
+                },
+                |i, _| (1e-5 * (TAU * 997.0 * i as f64 / 48000.0).sin()) as f32,
+            );
+            let gain = rms(&y[0][4000..]) / (1e-5 / 2.0_f64.sqrt());
+            assert!(
+                (20.0 * gain.log10() - 10.0).abs() < 0.1,
+                "channels={channels}, mode={mix_mode}, gain={gain}"
+            );
+        }
+    }
+}
 #[test]
 fn reset_erases_history_and_is_deterministic() {
     let mut p = Processor::new(48000.0, 2).unwrap();

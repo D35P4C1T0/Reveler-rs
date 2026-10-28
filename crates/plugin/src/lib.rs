@@ -272,3 +272,45 @@ impl Vst3Plugin for Reveler {
 
 nice_export_clap!(Reveler);
 nice_export_vst3!(Reveler);
+
+#[cfg(test)]
+mod tests {
+    use super::Reveler;
+    use nice_plug::wrapper::vst3::{
+        Wrapper,
+        vst3::Steinberg::{
+            Vst::{IAudioProcessorTrait, SpeakerArr},
+            kResultFalse, kResultOk,
+        },
+    };
+
+    #[test]
+    fn vst3_accepts_only_the_speaker_maps_it_reports() {
+        let wrapper = Wrapper::<Reveler>::new();
+        for mut supported in [SpeakerArr::kMono, SpeakerArr::kStereo, SpeakerArr::k51] {
+            let mut output = supported;
+            assert_eq!(
+                unsafe { wrapper.setBusArrangements(&mut supported, 1, &mut output, 1) },
+                kResultOk
+            );
+            for direction in [0, 1] {
+                let mut reported = 0;
+                assert_eq!(
+                    unsafe { wrapper.getBusArrangement(direction, 0, &mut reported) },
+                    kResultOk
+                );
+                assert_eq!(reported, supported);
+            }
+            for mut unsupported in [SpeakerArr::k60Cine, SpeakerArr::k60Music] {
+                assert_eq!(
+                    unsafe { wrapper.setBusArrangements(&mut unsupported, 1, &mut output, 1) },
+                    kResultFalse
+                );
+                assert_eq!(
+                    unsafe { wrapper.setBusArrangements(&mut supported, 1, &mut unsupported, 1) },
+                    kResultFalse
+                );
+            }
+        }
+    }
+}

@@ -41,3 +41,38 @@ fn lfe_is_not_changed_by_main_channel_adaptive_gain() {
         assert_eq!(x[3].to_bits(), y[3].to_bits());
     }
 }
+
+#[test]
+fn fixed_gain_keeps_detector_history_for_resuming_correction() {
+    for channels in [1, 2, 6] {
+        let mut reference = Adaptive::new(48000.0, channels);
+        let mut switched = Adaptive::new(48000.0, channels);
+        let params = Parameters {
+            max_gain_db: 20.0,
+            ..Parameters::default()
+        };
+        reference.set_parameters(params);
+        switched.set_parameters(params);
+        for i in 0..96000 {
+            if i == 24000 {
+                switched.set_parameters(Parameters {
+                    correction_high: 0.0,
+                    correction_low: 0.0,
+                    ..params
+                });
+            } else if i == 72000 {
+                switched.set_parameters(params);
+            }
+            let amplitude = if i < 24000 { 0.01 } else { 0.1 };
+            let mut a = [amplitude * (i as f32 * 0.13).sin(); 6];
+            let mut b = a;
+            let expected = reference.process_frame(&mut a[..channels]);
+            let actual = switched.process_frame(&mut b[..channels]);
+            assert_eq!(switched.measured_power(), reference.measured_power());
+            if i >= 72000 {
+                assert_eq!(actual, expected);
+                assert_eq!(a, b);
+            }
+        }
+    }
+}

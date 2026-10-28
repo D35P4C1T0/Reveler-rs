@@ -6,7 +6,7 @@ The Rust plugin uses NICE-plug and its core, egui integration and derive crates 
 
 [baseview](https://github.com/RustAudio/baseview) 0.3.7 (MIT OR Apache-2.0) is vendored with a macOS view-initialization fix. Its source and licenses are in `vendor/baseview`.
 
-[nice-plug](https://codeberg.org/RustAudio/nice-plug) 0.4.2 (ISC) is vendored with checks that reject VST3 editor notifications delivered on a different thread from the editor's creation thread. This prevents a panic and process abort observed in Carla on Linux. Its source, license, and patch notes are in `vendor/nice-plug`.
+[nice-plug](https://codeberg.org/RustAudio/nice-plug) 0.4.2 (ISC) is vendored with checks that reject VST3 editor notifications delivered on a different thread from the editor's creation thread. This prevents a panic and process abort observed in Carla on Linux. VST3 speaker maps are also validated against the supported layouts. Its source, license, and patch notes are in `vendor/nice-plug`.
 
 macOS Audio Units additionally include:
 

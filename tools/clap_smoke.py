@@ -1,7 +1,7 @@
-"""Minimal macOS CLAP mini-host smoke: metadata, stereo DSP, latency and state.
+"""Minimal CLAP mini-host smoke: metadata, stereo DSP, latency and state.
 Loads the CLAP plugin and checks audio, latency and state persistence.
 """
-import ctypes as c, pathlib, math
+import ctypes as c, pathlib, math, sys
 P=c.c_void_p; U=c.c_uint32; B=c.c_bool; D=c.c_double; I=c.c_int32
 F=lambda result,*args:c.CFUNCTYPE(result,*args)
 class Version(c.Structure): _fields_=[('major',U),('minor',U),('revision',U)]
@@ -10,7 +10,9 @@ class Host(c.Structure): _fields_=[('version',Version),('data',P),('name',c.c_ch
 class Plugin(c.Structure): _fields_=[('desc',P),('data',P),('init',F(B,P)),('destroy',F(None,P)),('activate',F(B,P,D,U,U)),('deactivate',F(None,P)),('start',F(B,P)),('stop',F(None,P)),('reset',F(None,P)),('process',F(I,P,P)),('ext',F(P,P,c.c_char_p)),('main',F(None,P))]
 class Factory(c.Structure): _fields_=[('count',F(U,P)),('desc',F(P,P,U)),('create',F(P,P,P,c.c_char_p))]
 class ParamInfo(c.Structure): _fields_=[('id',U),('flags',U),('cookie',P),('name',c.c_char*256),('module',c.c_char*1024),('min',D),('max',D),('default',D)]
-class Params(c.Structure): _fields_=[('count',F(U,P)),('info',F(B,P,U,P)),('value',F(B,P,U,P)),('vtext',P),('tvalue',P),('flush',P)]
+class Params(c.Structure): _fields_=[('count',F(U,P)),('info',F(B,P,U,P)),('value',F(B,P,U,P)),('vtext',P),('tvalue',P),('flush',F(None,P,P,P))]
+class EventHeader(c.Structure): _fields_=[('size',U),('time',U),('space',c.c_uint16),('type',c.c_uint16),('flags',U)]
+class ParamValue(c.Structure): _fields_=[('header',EventHeader),('id',U),('cookie',P),('note',I),('port',c.c_int16),('channel',c.c_int16),('key',c.c_int16),('value',D)]
 class Audio(c.Structure): _fields_=[('data32',c.POINTER(c.POINTER(c.c_float))),('data64',P),('channels',U),('latency',U),('constant',c.c_uint64)]
 class InputEvents(c.Structure): _fields_=[('ctx',P),('size',F(U,P)),('get',F(P,P,U))]
 class OutputEvents(c.Structure): _fields_=[('ctx',P),('push',F(B,P,P))]
@@ -19,16 +21,19 @@ class Latency(c.Structure): _fields_=[('get',F(U,P))]
 class State(c.Structure): _fields_=[('save',F(B,P,P)),('load',F(B,P,P))]
 class OStream(c.Structure): _fields_=[('ctx',P),('write',F(c.c_int64,P,P,c.c_uint64))]
 class IStream(c.Structure): _fields_=[('ctx',P),('read',F(c.c_int64,P,P,c.c_uint64))]
-p=pathlib.Path(__file__).resolve().parent.parent / 'target/bundled/Reveler-rs.clap/Contents/MacOS/Reveler-rs'; lib=c.CDLL(str(p)); e=Entry.in_dll(lib,'clap_entry'); assert e.init(str(p).encode())
+p=pathlib.Path(__file__).resolve().parent.parent / 'target/bundled/Reveler-rs.clap'
+if sys.platform == 'darwin': p=p/'Contents/MacOS/Reveler-rs'
+lib=c.CDLL(str(p)); e=Entry.in_dll(lib,'clap_entry'); assert e.init(str(p).encode())
 fp=e.get_factory(b'clap.plugin-factory'); factory=c.cast(fp,c.POINTER(Factory)).contents
 callbacks=[F(P,P,c.c_char_p)(lambda *_:None),F(None,P)(lambda *_:None),F(None,P)(lambda *_:None),F(None,P)(lambda *_:None)]
 host=Host(Version(1,2,6),None,b'Smoke Test',b'Local',b'',b'0.1',*callbacks)
 pp=factory.create(fp,c.byref(host),b'org.reveler-rs.loudness-leveler'); assert pp
 plugin=c.cast(pp,c.POINTER(Plugin)).contents; assert plugin.init(pp)
 params=c.cast(plugin.ext(pp,b'clap.params'),c.POINTER(Params)).contents; assert params.count(pp)==10
-names=[]
+names=[]; infos=[]
 for i in range(10):
  info=ParamInfo(); assert params.info(pp,i,c.byref(info)); names.append(info.name.decode()); assert info.flags&32
+ infos.append(info)
 print('10 automatable parameters:',', '.join(names))
 assert plugin.activate(pp,48000,64,64); assert plugin.start(pp)
 latency=c.cast(plugin.ext(pp,b'clap.latency'),c.POINTER(Latency)).contents.get(pp); assert latency>0
@@ -46,15 +51,28 @@ for block in range(200):
  energy+=sum(v*v for v in outs[0])
 assert energy>0
 plugin.stop(pp); plugin.deactivate(pp)
+def set_values(values):
+ events=[ParamValue(EventHeader(c.sizeof(ParamValue),0,0,5,0),info.id,info.cookie,-1,-1,-1,-1,value) for info,value in zip(infos,values)]
+ incoming=InputEvents(None,F(U,P)(lambda *_:len(events)),F(P,P,U)(lambda _,index:c.addressof(events[index])))
+ params.flush(pp,c.byref(incoming),c.byref(oe))
+ check_values(values)
+def check_values(values):
+ for info,expected in zip(infos,values):
+  actual=D(); assert params.value(pp,info.id,c.byref(actual))
+  assert abs(actual.value-expected)<1e-5, (info.name,actual.value,expected)
+defaults=[info.default for info in infos]
+expected=[info.min if info.default != info.min else info.max for info in infos]
+set_values(expected)
 state=c.cast(plugin.ext(pp,b'clap.state'),c.POINTER(State)).contents
 saved=bytearray()
 def write(_,ptr,size):saved.extend(c.string_at(ptr,size));return size
 outstream=OStream(None,F(c.c_int64,P,P,c.c_uint64)(write)); assert state.save(pp,c.byref(outstream))
+set_values(defaults)
 position=0
 def read(_,ptr,size):
  global position
  data=saved[position:position+size];c.memmove(ptr,bytes(data),len(data));position+=len(data);return len(data)
 instream=IStream(None,F(c.c_int64,P,P,c.c_uint64)(read)); assert state.load(pp,c.byref(instream))
-assert state.save(pp,c.byref(outstream))
+check_values(expected)
 plugin.destroy(pp);e.deinit()
 print(f'Processed 12800 stereo frames without nonfinite output; latency={latency}; state save/load succeeds ({position} bytes)')

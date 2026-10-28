@@ -280,39 +280,38 @@ impl Adaptive {
     /// 5.1 order: L, R, C, LFE, Ls, Rs. LFE is excluded from detection.
     pub fn process_frame(&mut self, frame: &mut [f32]) -> f32 {
         debug_assert_eq!(frame.len(), self.channels);
+        let power = if self.channels == 1 {
+            2.0 * self.detect(0, frame[0]) as f64
+        } else if self.channels == 2 {
+            let left = self.detect(0, frame[0]) as f64;
+            left + self.detect(1, frame[1]) as f64
+        } else {
+            let l = self.detect(0, frame[0]) as f64;
+            let r = self.detect(1, frame[1]) as f64;
+            let c = self.detect(2, frame[2]) as f64;
+            let ls = self.detect(3, frame[4]) as f64;
+            let rs = self.detect(4, frame[5]) as f64;
+            (ls + rs) * 1.4140625 + ((l + r) + c)
+        };
+        self.power = power;
+        self.dither = -self.dither;
         let gain = if self.fixed_mode {
             self.fixed
         } else {
-            let power = if self.channels == 1 {
-                2.0 * self.detect(0, frame[0]) as f64
-            } else if self.channels == 2 {
-                let left = self.detect(0, frame[0]) as f64;
-                left + self.detect(1, frame[1]) as f64
-            } else {
-                let l = self.detect(0, frame[0]) as f64;
-                let r = self.detect(1, frame[1]) as f64;
-                let c = self.detect(2, frame[2]) as f64;
-                let ls = self.detect(3, frame[4]) as f64;
-                let rs = self.detect(4, frame[5]) as f64;
-                (ls + rs) * 1.4140625 + ((l + r) + c)
-            };
-            self.power = power;
             let i = if power > self.reference_power { 0 } else { 1 };
             let g = if self.log_mode[i] {
                 let (a, b) = self.logarithmic[i];
                 (power.ln() * b + a).exp()
             } else {
                 let (a, b) = self.linear[i];
-                a / power.sqrt() + b
+                if a == 0.0 { b } else { a / power.sqrt() + b }
             };
             let g = g as f32;
-            let gain = if g > self.max_gain {
+            if g > self.max_gain {
                 self.max_gain
             } else {
                 even(g)
-            };
-            self.dither = -self.dither;
-            gain
+            }
         };
         let old = self.delay[self.pos];
         for i in 0..self.channels {

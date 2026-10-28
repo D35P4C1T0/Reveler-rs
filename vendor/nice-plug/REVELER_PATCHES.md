@@ -36,6 +36,15 @@ Run the focused tests from the repository root:
 cargo test --manifest-path vendor/nice-plug/Cargo.toml --lib editor_thread_tests --release --locked --target-dir target
 ```
 
+## VST3 speaker layout validation
+
+`setBusArrangements` now checks the speaker maps returned by
+`getBusArrangement`, rather than accepting any layout with the same channel
+count. In particular, six-speaker layouts without LFE are rejected instead
+of being processed as 5.1. Auxiliary bus indices also follow the main bus.
+The plugin's `vst3_accepts_only_the_speaker_maps_it_reports` test checks
+mono, stereo, and 5.1, and rejects unsupported input and output maps.
+
 ## Carla validation
 
 `tools/carla_gui_smoke.py` opens an independent host using the built VST3,
